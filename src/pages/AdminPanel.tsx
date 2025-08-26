@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { mockStreamerRequests, mockStreamers } from '@/data/mockData';
@@ -16,7 +19,11 @@ import {
   BarChart3,
   AlertCircle,
   Crown,
-  Settings
+  Settings,
+  ChevronDown,
+  ChevronUp,
+  Code,
+  Save
 } from 'lucide-react';
 
 const AdminPanel = () => {
@@ -24,7 +31,8 @@ const AdminPanel = () => {
   const { toast } = useToast();
   const [requests, setRequests] = useState(mockStreamerRequests);
   const [streamers, setStreamers] = useState(mockStreamers);
-  const [newGameForm, setNewGameForm] = useState({ name: '', description: '' });
+  const [newGameForm, setNewGameForm] = useState({ name: '', description: '', code: '' });
+  const [expandedRequests, setExpandedRequests] = useState<string[]>([]);
 
   if (!user || user.role !== 'admin') {
     return (
@@ -66,10 +74,10 @@ const AdminPanel = () => {
   };
 
   const handleAddGame = () => {
-    if (!newGameForm.name || !newGameForm.description) {
+    if (!newGameForm.name || !newGameForm.description || !newGameForm.code) {
       toast({
         title: "Erreur",
-        description: "Veuillez remplir tous les champs",
+        description: "Veuillez remplir tous les champs, y compris le code",
         variant: "destructive"
       });
       return;
@@ -78,10 +86,18 @@ const AdminPanel = () => {
     console.log('Nouveau mini-jeu:', newGameForm);
     toast({
       title: "Mini-jeu ajouté",
-      description: `${newGameForm.name} a été ajouté à la liste des mini-jeux`,
+      description: `${newGameForm.name} a été ajouté avec succès`,
       variant: "default"
     });
-    setNewGameForm({ name: '', description: '' });
+    setNewGameForm({ name: '', description: '', code: '' });
+  };
+
+  const toggleRequestExpand = (requestId: string) => {
+    setExpandedRequests(prev => 
+      prev.includes(requestId) 
+        ? prev.filter(id => id !== requestId)
+        : [...prev, requestId]
+    );
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -177,54 +193,110 @@ const AdminPanel = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {requests.map((request) => (
-                    <div key={request.id} className="p-4 bg-muted/20 rounded-lg border border-border">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-semibold text-foreground">{request.username}</h3>
-                            <Badge variant={
-                              request.status === 'pending' ? 'secondary' :
-                              request.status === 'approved' ? 'default' : 'destructive'
-                            }>
-                              {request.status === 'pending' ? 'En attente' :
-                               request.status === 'approved' ? 'Approuvé' : 'Refusé'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            <strong>Stream:</strong> {request.streamUrl}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            <strong>Date:</strong> {formatDate(request.createdAt)}
-                          </p>
-                          <p className="text-sm text-foreground">
-                            <strong>Motivation:</strong> {request.motivation}
-                          </p>
-                        </div>
-                        
-                        {request.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="default"
-                              onClick={() => handleRequestAction(request.id, 'approved')}
-                            >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Accepter
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="destructive"
-                              onClick={() => handleRequestAction(request.id, 'rejected')}
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Refuser
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  {requests.map((request) => {
+                    const isExpanded = expandedRequests.includes(request.id);
+                    return (
+                      <Collapsible key={request.id} open={isExpanded} onOpenChange={() => toggleRequestExpand(request.id)}>
+                        <Card className="bg-muted/10 border-border hover:bg-muted/20 transition-colors cursor-pointer">
+                          <CollapsibleTrigger asChild>
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <h3 className="font-semibold text-foreground">{request.username}</h3>
+                                  <Badge variant={
+                                    request.status === 'pending' ? 'secondary' :
+                                    request.status === 'approved' ? 'default' : 'destructive'
+                                  }>
+                                    {request.status === 'pending' ? 'En attente' :
+                                     request.status === 'approved' ? 'Approuvé' : 'Refusé'}
+                                  </Badge>
+                                  <div className="text-xs text-muted-foreground">
+                                    {formatDate(request.createdAt)}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {request.status === 'pending' && (
+                                    <div className="flex gap-1">
+                                      <Button 
+                                        size="sm" 
+                                        variant="default"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRequestAction(request.id, 'approved');
+                                        }}
+                                      >
+                                        <UserCheck className="h-3 w-3" />
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRequestAction(request.id, 'rejected');
+                                        }}
+                                      >
+                                        <UserX className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </div>
+                              </div>
+                            </CardHeader>
+                          </CollapsibleTrigger>
+                          
+                          <CollapsibleContent>
+                            <CardContent className="pt-0 space-y-3">
+                              <div className="p-3 bg-muted/30 rounded-lg space-y-2">
+                                <p className="text-sm">
+                                  <strong className="text-foreground">Stream URL:</strong>
+                                  <br />
+                                  <a href={request.streamUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                    {request.streamUrl}
+                                  </a>
+                                </p>
+                                <p className="text-sm">
+                                  <strong className="text-foreground">Motivation complète:</strong>
+                                  <br />
+                                  <span className="text-muted-foreground italic">"{request.motivation}"</span>
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Demande soumise le {new Date(request.createdAt).toLocaleString('fr-FR')}
+                                </p>
+                              </div>
+                              
+                              {request.status === 'pending' && (
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="default"
+                                    onClick={() => handleRequestAction(request.id, 'approved')}
+                                    className="flex-1"
+                                  >
+                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    Accepter la demande
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="destructive"
+                                    onClick={() => handleRequestAction(request.id, 'rejected')}
+                                    className="flex-1"
+                                  >
+                                    <UserX className="h-4 w-4 mr-2" />
+                                    Refuser la demande
+                                  </Button>
+                                </div>
+                              )}
+                            </CardContent>
+                          </CollapsibleContent>
+                        </Card>
+                      </Collapsible>
+                    );
+                  })}
 
                   {requests.length === 0 && (
                     <div className="text-center py-8">
@@ -294,23 +366,70 @@ const AdminPanel = () => {
           <TabsContent value="games" className="space-y-6">
             <Card className="bg-gradient-card border-border">
               <CardHeader>
-                <CardTitle className="text-foreground">Ajouter un nouveau mini-jeu</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <Code className="h-5 w-5 text-primary" />
+                  Ajouter un nouveau mini-jeu
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <Input
-                      placeholder="Nom du mini-jeu"
-                      value={newGameForm.name}
-                      onChange={(e) => setNewGameForm(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                    <Input
-                      placeholder="Description du jeu"
-                      value={newGameForm.description}
-                      onChange={(e) => setNewGameForm(prev => ({ ...prev, description: e.target.value }))}
-                    />
+                    <div>
+                      <Label htmlFor="game-name">Nom du mini-jeu</Label>
+                      <Input
+                        id="game-name"
+                        placeholder="Ex: Jeu de mémoire"
+                        value={newGameForm.name}
+                        onChange={(e) => setNewGameForm(prev => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="game-description">Description</Label>
+                      <Input
+                        id="game-description"
+                        placeholder="Description courte du jeu"
+                        value={newGameForm.description}
+                        onChange={(e) => setNewGameForm(prev => ({ ...prev, description: e.target.value }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="game-code">Code du composant React</Label>
+                      <Textarea
+                        id="game-code"
+                        placeholder="import React, { useState } from 'react';
+
+const MonNouveauJeu = ({ onWin, onLose }) => {
+  const [score, setScore] = useState(0);
+  
+  const handleWin = () => {
+    onWin(score);
+  };
+  
+  return (
+    <div>
+      <h3>Mon Nouveau Jeu</h3>
+      {/* Votre logique de jeu ici */}
+      <button onClick={handleWin}>
+        Valider
+      </button>
+    </div>
+  );
+};
+
+export default MonNouveauJeu;"
+                        value={newGameForm.code}
+                        onChange={(e) => setNewGameForm(prev => ({ ...prev, code: e.target.value }))}
+                        className="min-h-[300px] font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        💡 Votre composant doit accepter les props `onWin` et `onLose`
+                      </p>
+                    </div>
+
                     <Button onClick={handleAddGame} className="w-full">
-                      <Plus className="h-4 w-4 mr-2" />
+                      <Save className="h-4 w-4 mr-2" />
                       Ajouter le mini-jeu
                     </Button>
                   </div>
@@ -319,13 +438,37 @@ const AdminPanel = () => {
                     <h4 className="font-semibold text-foreground">Mini-jeux actuels</h4>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between p-3 bg-muted/20 rounded">
-                        <span className="text-foreground">🎯 Devine le Chiffre</span>
+                        <div>
+                          <div className="font-medium text-foreground">🎯 Devine le Chiffre</div>
+                          <div className="text-xs text-muted-foreground">GuessNumber.tsx</div>
+                        </div>
                         <Badge variant="default">Actif</Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted/20 rounded">
-                        <span className="text-foreground">🎪 Pendu</span>
+                        <div>
+                          <div className="font-medium text-foreground">🎪 Pendu</div>
+                          <div className="text-xs text-muted-foreground">Hangman.tsx</div>
+                        </div>
                         <Badge variant="default">Actif</Badge>
                       </div>
+                    </div>
+
+                    <div className="mt-6 p-4 bg-muted/10 rounded-lg border border-border">
+                      <h5 className="font-medium text-foreground mb-3">📋 Structure requise</h5>
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <div>• Props: <code className="bg-muted px-1 rounded">onWin(score)</code></div>
+                        <div>• Props: <code className="bg-muted px-1 rounded">onLose()</code></div>
+                        <div>• Export par défaut du composant</div>
+                        <div>• Gérer l'état interne du jeu</div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-accent/10 rounded-lg border border-accent/20">
+                      <h5 className="font-medium text-foreground mb-2">🛠️ Fonctionnement</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Une fois ajouté, le mini-jeu sera automatiquement intégré 
+                        à la plateforme et pourra être activé par les streamers.
+                      </p>
                     </div>
                   </div>
                 </div>

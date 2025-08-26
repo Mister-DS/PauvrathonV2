@@ -2,8 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockViewerStats, mockGameSessions } from '@/data/mockData';
-import { Trophy, Clock, Target, TrendingUp, LogOut, User } from 'lucide-react';
+import { mockViewerStats, mockGameSessions, mockStreamers } from '@/data/mockData';
+import { Trophy, Clock, Target, TrendingUp, LogOut, User, Crown, Star } from 'lucide-react';
 
 const Profil = () => {
   const { user, logout } = useAuth();
@@ -11,6 +11,19 @@ const Profil = () => {
   if (!user) return null;
 
   const userGameSessions = mockGameSessions.slice(0, 5); // 5 dernières parties
+  
+  // Calcul du streamer préféré (le plus de participations)
+  const streamerStats = mockGameSessions.reduce((acc, session) => {
+    acc[session.streamerId] = (acc[session.streamerId] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const favoriteStreamerId = Object.keys(streamerStats).reduce((a, b) => 
+    streamerStats[a] > streamerStats[b] ? a : b, Object.keys(streamerStats)[0]
+  );
+  
+  const favoriteStreamer = mockStreamers.find(s => s.id === favoriteStreamerId);
+  const favoriteStreamerParticipations = streamerStats[favoriteStreamerId] || 0;
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -99,28 +112,70 @@ const Profil = () => {
           </Card>
         </div>
 
-        {/* Favorite Game */}
-        <Card className="bg-gradient-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Trophy className="h-5 w-5 text-accent" />
-              Jeu Favori
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-lg font-semibold text-foreground">{mockViewerStats.favoriteGame}</div>
-                <div className="text-sm text-muted-foreground">
-                  Vous excellez dans ce mini-jeu !
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Favorite Game */}
+          <Card className="bg-gradient-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Trophy className="h-5 w-5 text-accent" />
+                Jeu Favori
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-lg font-semibold text-foreground">{mockViewerStats.favoriteGame}</div>
+                  <div className="text-sm text-muted-foreground">
+                    Vous excellez dans ce mini-jeu !
+                  </div>
                 </div>
+                <Badge variant="default" className="text-lg px-4 py-2">
+                  ⭐ Favori
+                </Badge>
               </div>
-              <Badge variant="default" className="text-lg px-4 py-2">
-                ⭐ Favori
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Favorite Streamer */}
+          <Card className="bg-gradient-card border-accent/20 shadow-accent">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Crown className="h-5 w-5 text-accent" />
+                Streamer Favori
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {favoriteStreamer ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={favoriteStreamer.avatar} 
+                      alt={favoriteStreamer.displayName}
+                      className="w-12 h-12 rounded-full border-2 border-accent/30"
+                    />
+                    <div>
+                      <div className="text-lg font-semibold text-foreground">{favoriteStreamer.displayName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {favoriteStreamerParticipations} participation{favoriteStreamerParticipations > 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Star className="h-3 w-3" />
+                    Champion
+                  </Badge>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Crown className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <div className="text-sm text-muted-foreground">
+                    Participez aux subathons pour découvrir votre streamer favori !
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Recent Games History */}
         <Card className="bg-gradient-card border-border">

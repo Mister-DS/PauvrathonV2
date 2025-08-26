@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -14,7 +15,11 @@ import {
   Gamepad2, 
   Crown, 
   Save,
-  AlertCircle 
+  AlertCircle,
+  Play,
+  Pause,
+  Square,
+  Shuffle
 } from 'lucide-react';
 
 const StreamerPanel = () => {
@@ -24,6 +29,8 @@ const StreamerPanel = () => {
   // Mock settings state
   const [settings, setSettings] = useState({
     timePerClick: 15, // secondes ajoutées par réussite
+    maxTimePerClick: 30, // temps maximum pour mode aléatoire
+    timeMode: 'fixed', // 'fixed' ou 'random'
     clicksForMinigame: 100, // nombre de clics avant mini-jeu
     cooldown: 30, // cooldown entre les tentatives en secondes
     activeGames: {
@@ -32,6 +39,15 @@ const StreamerPanel = () => {
       memoryGame: false, // désactivé pour l'instant
       wordGame: false // désactivé pour l'instant
     }
+  });
+
+  // État du subathon
+  const [subathonState, setSubathonState] = useState({
+    isRunning: false,
+    isPaused: false,
+    totalTimeAdded: 0,
+    currentClicks: 45,
+    targetClicks: 100
   });
 
   // Mock best player data
@@ -60,7 +76,7 @@ const StreamerPanel = () => {
     );
   }
 
-  const handleSettingChange = (key: string, value: number | boolean) => {
+  const handleSettingChange = (key: string, value: number | boolean | string) => {
     if (typeof value === 'number') {
       setSettings(prev => ({
         ...prev,
@@ -93,6 +109,35 @@ const StreamerPanel = () => {
     });
   };
 
+  const handleSubathonControl = (action: 'start' | 'pause' | 'stop') => {
+    switch (action) {
+      case 'start':
+        setSubathonState(prev => ({ ...prev, isRunning: true, isPaused: false }));
+        toast({
+          title: "Subathon lancé !",
+          description: "Votre subathon est maintenant en cours",
+          variant: "default"
+        });
+        break;
+      case 'pause':
+        setSubathonState(prev => ({ ...prev, isPaused: !prev.isPaused }));
+        toast({
+          title: subathonState.isPaused ? "Subathon repris" : "Subathon en pause",
+          description: subathonState.isPaused ? "Le subathon continue" : "Le subathon est maintenant en pause",
+          variant: "default"
+        });
+        break;
+      case 'stop':
+        setSubathonState({ isRunning: false, isPaused: false, totalTimeAdded: 0, currentClicks: 0, targetClicks: settings.clicksForMinigame });
+        toast({
+          title: "Subathon arrêté",
+          description: "Le subathon a été arrêté et remis à zéro",
+          variant: "destructive"
+        });
+        break;
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -114,11 +159,91 @@ const StreamerPanel = () => {
           </p>
         </div>
 
-        {/* Current Best Player */}
+        {/* Subathon Controls */}
         <Card className="bg-gradient-card border-accent/20 shadow-gaming">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <Crown className="h-5 w-5 text-accent" />
+              Contrôles du Subathon
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* État actuel */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg">
+                  <div>
+                    <div className="font-semibold text-foreground">État actuel</div>
+                    <div className="text-sm text-muted-foreground">
+                      {!subathonState.isRunning ? 'Arrêté' : 
+                       subathonState.isPaused ? 'En pause' : 'En cours'}
+                    </div>
+                  </div>
+                  <Badge variant={
+                    !subathonState.isRunning ? 'destructive' : 
+                    subathonState.isPaused ? 'secondary' : 'default'
+                  }>
+                    {!subathonState.isRunning ? '⭕ Arrêté' : 
+                     subathonState.isPaused ? '⏸️ Pause' : '▶️ Live'}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center p-3 bg-muted/20 rounded-lg">
+                    <div className="text-lg font-bold text-primary">{subathonState.currentClicks}/{subathonState.targetClicks}</div>
+                    <div className="text-xs text-muted-foreground">Clics</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted/20 rounded-lg">
+                    <div className="text-lg font-bold text-secondary">{formatTime(subathonState.totalTimeAdded)}</div>
+                    <div className="text-xs text-muted-foreground">Temps ajouté</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contrôles */}
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-foreground">Actions rapides</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {!subathonState.isRunning ? (
+                    <Button 
+                      onClick={() => handleSubathonControl('start')}
+                      className="w-full"
+                      variant="default"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Lancer
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={() => handleSubathonControl('pause')}
+                      className="w-full"
+                      variant="secondary"
+                    >
+                      <Pause className="h-4 w-4 mr-2" />
+                      {subathonState.isPaused ? 'Reprendre' : 'Pause'}
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    onClick={() => handleSubathonControl('stop')}
+                    className="w-full"
+                    variant="destructive"
+                    disabled={!subathonState.isRunning}
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Arrêter
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Current Best Player */}
+        <Card className="bg-gradient-card border-primary/20 shadow-glow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Crown className="h-5 w-5 text-primary" />
               Meilleur Joueur Actuel
             </CardTitle>
           </CardHeader>
@@ -158,23 +283,82 @@ const StreamerPanel = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div>
-                  <Label className="text-foreground">Temps ajouté par réussite (secondes)</Label>
-                  <div className="flex items-center gap-3 mt-2">
-                    <Timer className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="number"
-                      min="1"
-                      max="60"
-                      value={settings.timePerClick}
-                      onChange={(e) => handleSettingChange('timePerClick', parseInt(e.target.value))}
-                      className="max-w-24"
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      secondes par victoire
-                    </span>
-                  </div>
+                <div className="space-y-3">
+                  <Label className="text-foreground">Mode de temps ajouté</Label>
+                  <Select value={settings.timeMode} onValueChange={(value) => handleSettingChange('timeMode', value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">
+                        <div className="flex items-center gap-2">
+                          <Timer className="h-4 w-4" />
+                          Temps fixe
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="random">
+                        <div className="flex items-center gap-2">
+                          <Shuffle className="h-4 w-4" />
+                          Temps aléatoire
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {settings.timeMode === 'fixed' ? (
+                  <div>
+                    <Label className="text-foreground">Temps ajouté par réussite (secondes)</Label>
+                    <div className="flex items-center gap-3 mt-2">
+                      <Timer className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={settings.timePerClick}
+                        onChange={(e) => handleSettingChange('timePerClick', parseInt(e.target.value))}
+                        className="max-w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        secondes par victoire
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground">Temps minimum</Label>
+                      <div className="flex items-center gap-3 mt-2">
+                        <Timer className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          min="1"
+                          max="60"
+                          value={settings.timePerClick}
+                          onChange={(e) => handleSettingChange('timePerClick', parseInt(e.target.value))}
+                          className="max-w-20"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-foreground">Temps maximum</Label>
+                      <div className="flex items-center gap-3 mt-2">
+                        <Shuffle className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          min={settings.timePerClick + 1}
+                          max="120"
+                          value={settings.maxTimePerClick}
+                          onChange={(e) => handleSettingChange('maxTimePerClick', parseInt(e.target.value))}
+                          className="max-w-20"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-xs text-muted-foreground bg-muted/20 p-2 rounded">
+                      💡 Mode aléatoire : Entre {settings.timePerClick}s et {settings.maxTimePerClick}s par victoire
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label className="text-foreground">Clics nécessaires avant mini-jeu</Label>
